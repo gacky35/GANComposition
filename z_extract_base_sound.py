@@ -72,13 +72,13 @@ from torch import sign
 import matplotlib.pyplot as plt
 # %%
 mus = musdb.DB(download=True)
+# %%
+audio_path = librosa.util.example_audio_file(); audio_path
+y, sr = librosa.load(audio_path)
 display(mus[0].stems)
 # %%
 sr = 44100
 librosa.display.waveplot(y, sr=sr)
-# %%
-audio_path = librosa.util.example_audio_file(); audio_path
-y, sr = librosa.load(audio_path)
 # %%
 (y.shape, mus[0].audio.shape)
 # %%
@@ -88,23 +88,46 @@ def min_max(x, axis=None):
     result = (x-min_num) / (max_num-min_num)
     return result
 # %%
+def decord_min_max(x, min_num, max_num, axis=None):
+    result = x*max_num-x*min_num+min_num
+    return result
+# %%
 D = librosa.stft(mus[0].stems[1][:,0])  # STFT
 S, phase = librosa.magphase(D)  # 複素数を強度と位相へ変換
 Sdb = librosa.amplitude_to_db(S)  # 強度をdb単位へ変換
-print(Sdb.shape)
+# print(Sdb)
+# print(Sdb.shape)
+min_num = Sdb.min(axis=None,keepdims=True)
+max_num = Sdb.max(axis=None,keepdims=True)
+# print(min_num, max_num)
 fig_size = np.array(Sdb.shape)
 dpi = 100
 plt.subplots(figsize=fig_size/dpi, dpi=dpi)
-Sdb = min_max(Sdb)
-print(Sdb)
-print(max(list(map(lambda x: max(x), Sdb))), min(list(map(lambda x: min(x), Sdb))))
-im = librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
+Sdb = min_max(Sdb) * 255 # db単位を画像で扱える範囲に正規化
+# print(Sdb)
+# print(Sdb.shape)
+# print(max(list(map(lambda x: max(x), Sdb))), min(list(map(lambda x: min(x), Sdb))))
+librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
+# im = librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
+# D2 = im.get_array().reshape(im._meshHeight, im._meshWidth)
 plt.axis('off')
 plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
 # plt.show()
 # import cv2
-# cv2.imwrite('./cv2_sample.png', Sdb)
-plt.savefig(f"./sample_normal.png")
+# cv2.imwrite('./cv2_sample.png', D2)
+plt.savefig("./sample_normal.png")
+from PIL import Image
+img = Image.open("./sample_normal.png")
+gray = img.convert('L')
+gray.save('./sample_normal_gray.png')
+#%%
+Sdb = librosa.amplitude_to_db(S)
+display(Sdb)
+min_num = Sdb.min(axis=None,keepdims=True)
+max_num = Sdb.max(axis=None,keepdims=True)
+print(min_num, max_num)
+display(min_max(Sdb))
+display(decord_min_max(min_max(Sdb), min_num, max_num))
 # %%
 mus[0].stems[1][:,0].shape
 # %%
@@ -150,12 +173,48 @@ def griffinlim(spectrogram, n_iter = 100, window = 'hann', n_fft = 2048, hop_len
 # %%
 import cv2
 # %%
-img = cv2.imread('./sample_normal.png')
+img = cv2.imread('./sample_normal_gray.png', cv2.IMREAD_GRAYSCALE)
+# img = img.reshape(1025, 587)
+print(img.shape)
+plt.gray()
 plt.imshow(img)
+print(img)
 # %%
-img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+sdb = pd.DataFrame(img.flatten())
+sdb.hist(bins=20, range=(sdb.min().values[0], sdb.quantile(0.9).values[0]) ) # Sの最小値～90%点までの分布を表示
 # %%
-plt.imshow(img_gray)
+img[::-1]
 # %%
-img.T
+img_decord = decord_min_max(img[::-1] / 255, -48.34430262, 31.65569738)
+# %%
+img_decord = img_decord.reshape(1025, 587)
+# %%
+min_num = (img_decord).min(axis=None,keepdims=True)
+max_num = (img_decord).max(axis=None,keepdims=True)
+# %%
+print(min_num, max_num)
+# %%
+reverse = librosa.griffinlim(img_decord)
+display(reverse)
+# %%
+D = img_decord * np.exp(np.zeros(img_decord.shape))
+y_inv = librosa.istft(D)
+# display(IPython.display.Audio(y_inv, rate=sr))
+mpl_collection = librosa.display.waveplot(y_inv, sr=sr)
+# mpl_collection.axes.set(title="位相０で復元した音声波形", ylabel="波形の振幅")
+# mpl_collection.axes.set_ylim(ylim);
+# %%
+mpl_collection = librosa.display.waveplot(reverse, sr=sr)
+# %%
+y_inv = griffinlim(img_decord)
+mpl_collection = librosa.display.waveplot(y_inv, sr=sr)
+# %%
+print(min(mus[0].stems[1][:,0]), max(mus[0].stems[1][:,0]))
+
+# %%
+print(min(y_inv), max(y_inv))
+# %%
+sdb = pd.DataFrame(mus[0].stems[1][:,0].flatten())
+sdb.hist(bins=20, range=(sdb.min().values[0], sdb.quantile(0.9).values[0]) ) # Sの最小値～90%点までの分布を表示
+plt.title("dB単位の強度の分布")
 # %%
