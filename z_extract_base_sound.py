@@ -107,14 +107,18 @@ Sdb = min_max(Sdb) * 255 # db単位を画像で扱える範囲に正規化
 # print(Sdb)
 # print(Sdb.shape)
 # print(max(list(map(lambda x: max(x), Sdb))), min(list(map(lambda x: min(x), Sdb))))
-librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
-# im = librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
-# D2 = im.get_array().reshape(im._meshHeight, im._meshWidth)
+# librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
+im = librosa.display.specshow(Sdb, sr=sr, x_axis='time', y_axis='log')  # スペクトログラムを表示
+D2 = im.get_array().reshape(im._meshHeight, im._meshWidth)
+# print(pd.DataFrame(Sdb.flatten()))
+# print(im.get_array())
+# print(Sdb.flatten() == im.get_array())
+# print(Sdb == D2)
 plt.axis('off')
 plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
 # plt.show()
-# import cv2
-# cv2.imwrite('./cv2_sample.png', D2)
+import cv2
+cv2.imwrite('./cv2_sample.png', D2)
 plt.savefig("./sample_normal.png")
 from PIL import Image
 img = Image.open("./sample_normal.png")
